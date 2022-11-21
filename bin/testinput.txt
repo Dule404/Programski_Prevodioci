@@ -1,0 +1,10 @@
+main
+%ovo je komentar%
+ceoBroj,karakter,realanBroj,logickaPomenjiva1,logickaPomenjiva2;
+int,char,float,bool;
+ceoBroj==0#d356;
+karakter=='c';
+realanBroj==0.342E+21;
+logickaPomenjiva1==true;
+logickaPomenjiva2==true;
+(logickaPomenjiva1||logickaPomenjiva2)&&logickaPomenjiva2;
