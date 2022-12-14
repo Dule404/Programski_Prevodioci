@@ -1,0 +1,247 @@
+//import sekcija
+
+import java_cup.runtime.*;
+import java.io.*;
+
+parser code {:
+
+   public int errNo = 0;
+   
+   public static void main( String[] args )
+   {
+      try
+	  {
+		   FileReader file = new FileReader( args[0] );
+		   Scanner scanner = new MPLexer( file );
+		   MPParser parser = new MPParser( scanner );
+		   parser.parse();
+		   if ( parser.errNo == 0 )
+		      System.out.println( "Analiza zavrsena. U kodu nema gresaka." );
+		   else
+		      System.out.println( "Analiza zavrsena. Broj gresaka: " + parser.errNo );
+	  }
+	  catch( Exception e )
+	  {
+		   e.printStackTrace();
+	  }
+   }
+   
+   public void syntax_error(Symbol cur_token)
+   {
+   	  
+   }
+   
+   public void report_error(String message, Object info)
+   {
+   	   System.out.print( message );
+   }
+   
+   public int getLine()
+   {
+   	  return (( MPLexer) getScanner()).getLine();
+   }
+:};
+
+
+//Terminali
+terminal MAIN, INT, CHAR, FLOAT, BOOL, LOOP, REDO, OR, AND, LOWER, LOWEROREQUAL, EQUAL, BOOLCONST, INTCONST, FLOATCONST, CHARCONST;
+terminal ID, NOTEQUAL, GREATER, GREATEROREQUAL, LEFTPAR, RIGHTPAR, SEMICOLON, LEFTCURLYPAR, RIGHTCURLYPAR, COMMA, ASSIGN;
+
+//Neterminali
+non terminal Program, Block, Declarations, StatementList, VarDecl, Type, NameList;
+non terminal Statement, RedoLoop, Expression, AndExpression, RelExpression, Term, RelOp;
+
+start with Program;
+
+//Gramatika
+Program ::= MAIN LEFTPAR RIGHTPAR Block  
+            {:
+               System.out.println( "1." );
+            :}
+            |MAIN LEFTPAR error Block 
+            {:
+               System.out.println( "Nedosaje zatvorena zagrada." );
+               parser.errNo++;
+            :}
+            ;
+
+Block ::= LEFTCURLYPAR Declarations StatementList RIGHTCURLYPAR
+             {:
+                System.out.println( "2." );
+             :}
+            | LEFTCURLYPAR Declarations StatementList error
+             {:
+                System.out.println( "Nedosaje zatvorena viticasta zagrada." );
+                parser.errNo++;
+             :}
+             ;
+
+Declarations ::= Declarations VarDecl 
+            {:
+               System.out.println( "3." );
+            :}
+            | VarDecl
+            {:
+			   System.out.println( "3.7" );
+            :}
+            ;
+
+VarDecl ::= Type NameList SEMICOLON
+                {:
+                   System.out.println( "5." );
+                :}
+                | Type NameList error
+                {:
+                   System.out.println( "Nedostaje tacka zarez." );
+               	   parser.errNo++;
+                :}
+                ;
+
+NameList ::= ID
+             {:
+                System.out.println( "6." );
+             :} 
+           | NameList COMMA ID
+             {:
+                System.out.println( "7." );
+             :}
+           ;
+
+Type ::= INT 
+        {:
+           System.out.println( "8." );
+        :}
+      | CHAR
+        {:
+           System.out.println( "9." );
+        :}
+      | FLOAT 
+        {:
+           System.out.println( "10." );
+        :}
+      | BOOL
+        {:
+           System.out.println( "11." );
+        :}
+      ;
+
+StatementList ::= StatementList Statement
+         {:
+            System.out.println( "12." );
+         :}
+         | Statement
+         {:
+            System.out.println( "13." );
+         :}
+         ;
+
+Statement ::= RedoLoop 
+           {:
+              System.out.println( "14." );
+           :}
+         | ID ASSIGN Expression SEMICOLON
+           {:
+              System.out.println( "15." );
+           :}
+         | ID ASSIGN Expression error
+           {:
+              System.out.println( "Nedostaje tacka zarez." );
+              parser.errNo++;
+           :}
+         | ID error Expression SEMICOLON
+           {:
+              System.out.println( "Nedostaje znak dodele." );
+              parser.errNo++;
+           :}
+		 | Block
+           {:
+              System.out.println( "16." );
+           :}
+         ;
+
+RedoLoop ::= LOOP LEFTPAR Expression RIGHTPAR LEFTCURLYPAR Statement REDO LEFTPAR Expression RIGHTPAR SEMICOLON Statement LEFTCURLYPAR
+            {:
+               System.out.println( "Redukcija po smeni 17." );
+            :};
+
+Expression ::= Expression OR AndExpression
+         {:
+            System.out.println( "18." );
+         :}
+         | AndExpression         
+         {:
+            System.out.println( "19." );
+         :}         
+         ;
+
+AndExpression ::= AndExpression AND RelExpression
+          {:
+             System.out.println( "20." );
+          :}
+          | RelExpression
+          {:
+             System.out.println( "21." );
+          :}
+          ;
+
+RelExpression ::= Term RelOp Term
+           {:
+              System.out.println( "22." );
+           :}
+           | Term
+           {:
+              System.out.println( "23." );
+           :}
+           ;
+
+RelOp ::= LOWER
+          {:
+             System.out.println( "24." );
+          :}
+        | LOWEROREQUAL
+          {:
+             System.out.println( "25." );
+          :}
+        | EQUAL
+          {:
+             System.out.println( "26." );
+          :}
+        | NOTEQUAL
+          {:
+             System.out.println( "27." );
+          :}
+        | GREATER
+          {:
+             System.out.println( "28." );
+          :}
+        | GREATEROREQUAL
+          {:
+             System.out.println( "29." );
+          :}
+        ;
+
+Term ::= ID
+           {:
+              System.out.println( "30." );
+           :}
+         | INTCONST
+           {:
+              System.out.println( "31." );
+           :}
+         | CHARCONST
+           {:
+              System.out.println( "32." );
+           :}
+         | FLOATCONST
+           {:
+              System.out.println( "33." );
+           :}
+         | BOOLCONST
+           {:
+              System.out.println( "34." );
+           :}
+         | LEFTPAR Expression RIGHTPAR
+           {:
+              System.out.println( "35." );
+           :}
+         ;
