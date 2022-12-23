@@ -1,0 +1,315 @@
+//import sekcija
+
+import java_cup.runtime.*;
+import java.io.*;
+import java.util.*;
+import SymbolTable.*;
+
+parser code {:
+
+	public int warNo = 0;
+	public int errNo = 0;
+	public int area = 0;
+	
+	SymbolTable symbolTable;	
+
+   public static void main( String[] args )
+   {
+      try
+	  {
+		FileReader file = new FileReader(args[0]);
+ 		java_cup.runtime.Scanner scanner = new MPLexer( file );
+ 		MPParser parser = new MPParser( scanner );
+ 		parser.parse();
+ 		parser.checkWarnings();
+ 		if ( parser.errNo==0 && parser.warNo==0 )
+ 			System.out.println("Analiza zavrsena. U kodu nema gresaka." );
+		else
+			System.out.println("Analiza zavrsena. Broj gresaka: "+ parser.errNo + " Broj upozorenja: " +parser.warNo ); 
+	  }
+	  catch( Exception e )
+	  {
+		   e.printStackTrace();
+	  }
+   }
+
+	public void checkWarnings()
+	{
+		SymbolNode current = symbolTable.getVariables();
+ 		while ( current != null )
+ 		{
+ 			Variable var = ( Variable ) current;
+ 			if ( var.last_def == -1 && var.last_use == -1 )
+ 			{
+ 				System.out.println("Upozorenje: Promenljiva " + var.name + "je deklarisana, ali se ne koristi.");
+ 				warNo++;
+ 			}
+ 			else if ( var.last_def > var.last_use )
+ 			{
+ 				System.out.println("Upozorenje: Vrednost dodeljena prom. "+ var.name + " u liniji " + var.last_def + " se nigde ne koristi." );
+ 				warNo++;
+ 			}
+ 			current = current.next;
+ 		} 
+	}
+
+ 	public int getLine()
+ 	{
+ 		return (( MPLexer) getScanner()).getLine();
+ 	} 
+
+:};
+
+
+init with {:
+ 	symbolTable = new SymbolTable();
+:} 
+
+
+//Terminali
+terminal MAIN, INT, CHAR, FLOAT, BOOL, LOOP, REDO, OR, AND, LOWER, LOWEROREQUAL, EQUAL;
+terminal NOTEQUAL, GREATER, GREATEROREQUAL, LEFTPAR, RIGHTPAR, SEMICOLON, LEFTCURLYPAR, RIGHTCURLYPAR, COMMA, ASSIGN;
+terminal String ID;
+terminal Integer INTCONST;
+terminal Float FLOATCONST;
+terminal Character CHARCONST;
+terminal Boolean BOOLCONST;
+
+//Neterminali
+non terminal Program, Block, Declarations, StatementList, VarDecl;
+non terminal Statement, RedoLoop,RelOp;
+non terminal ArrayList NameList;
+non terminal CType Type, Expression, AndExpression, RelExpression, Term;
+non terminal Constant ConstantNT;
+
+start with Program;
+
+//Gramatika
+Program ::= MAIN LEFTPAR RIGHTPAR Block  
+            {:
+               System.out.println( "1." );
+            :};
+
+Block ::= LEFTCURLYPAR Declarations StatementList RIGHTCURLYPAR
+             {:
+				parser.area++;
+                System.out.println( "2." );
+             :};
+
+Declarations ::= Declarations VarDecl 
+            {:
+               System.out.println( "3." );
+            :}
+            | VarDecl
+            {:
+			   System.out.println( "3.7" );
+            :}
+            ;
+
+VarDecl ::= Type:t NameList:niz SEMICOLON
+                {:
+                   for ( int i=0; i<niz.size(); i++ )
+ 					{
+ 						String ime = (String) niz.get(i);
+ 						if ( ! parser.symbolTable.addVar(ime, t, parser.area ) )
+						{
+ 							System.out.println("Promenljiva " + ime +" je vec deklarisana u ovoj oblasti." );
+							parser.errNo++;
+ 						}
+ 					} 
+                :};
+
+NameList ::= ID:ime
+             {:
+                RESULT = new ArrayList();
+ 				RESULT.add( ime ); 
+
+             :} 
+           | NameList:niz COMMA ID:ime
+             {:
+                RESULT = niz;
+ 			   	RESULT.add( ime ); 
+             :}
+           ;
+
+Type ::= INT 
+        {:
+           RESULT = parser.symbolTable.getType("integer");
+        :}
+      | CHAR
+        {:
+           RESULT = parser.symbolTable.getType("character");
+        :}
+      | FLOAT 
+        {:
+           RESULT = parser.symbolTable.getType("float");
+        :}
+      | BOOL
+        {:
+           RESULT = parser.symbolTable.getType("boolean");
+        :}
+      ;
+
+StatementList ::= StatementList Statement
+         {:
+            System.out.println( "12." );
+         :}
+         | Statement
+         {:
+            System.out.println( "13." );
+         :}
+         ;
+
+Statement ::= RedoLoop 
+           {:
+              System.out.println( "14." );
+           :}
+         | ID:ime ASSIGN Expression:izraz SEMICOLON
+           {:
+                Variable var = parser.symbolTable.getVar(ime);
+ 				if ( var == null )
+ 				{
+ 					System.out.println( "Promenljiva " + ime + " nije deklarisana.");
+ 					parser.errNo++;
+ 				}
+ 				//else
+ 				//	var.last_def = parser.getLine(); 
+				if( var.type.tkind != izraz.tkind)
+				{
+					System.out.println( "Promenljiva " + ime + " nije odgovarajuceg tipa.");
+ 					parser.errNo++;
+				}
+           :}
+		 | Block
+           {:
+              System.out.println( "16." );
+           :}
+         ;
+
+RedoLoop ::= LOOP LEFTPAR Expression:lIme RIGHTPAR LEFTCURLYPAR Statement REDO LEFTPAR Expression:rIme RIGHTPAR SEMICOLON Statement LEFTCURLYPAR
+            {:
+               if( lIme.tkind != CType.BOOL || rIme.tkind != CType.BOOL ) 
+				{
+					System.out.println( "Uslov nije odgovarajuceg tipa");
+ 					parser.errNo++;
+				}
+            :};
+
+Expression ::= Expression:op1 OR AndExpression:op2
+         {:
+            if ( op1.tkind != CType.BOOL || op2.tkind != CType.BOOL )
+			{
+				System.out.println( "Operandi nisu odgovarajuceg tipa");
+ 				parser.errNo++;
+			}
+			RESULT = parser.symbolTable.getType("boolean");
+         :}
+         | AndExpression         
+         {:
+            System.out.println( "19." );
+         :}         
+         ;
+
+AndExpression ::= AndExpression:op1 AND RelExpression:op2
+          {:
+          	if ( op1.tkind != CType.BOOL || op2.tkind != CType.BOOL )
+			{
+				System.out.println( "Operandi nisu odgovarajuceg tipa");
+ 				parser.errNo++;
+			}
+			RESULT = parser.symbolTable.getType("boolean");
+          :}
+          | RelExpression
+          {:
+             System.out.println( "21." );
+          :}
+          ;
+
+RelExpression ::= Term:op1 RelOp Term:op2
+           {:
+            if ( op1.tkind == CType.BOOL || op2.tkind == CType.BOOL )
+			{
+				System.out.println( "Operandi nisu odgovarajuceg tipa");
+ 				parser.errNo++;
+			}
+			RESULT = parser.symbolTable.getType("boolean")
+           :}
+           | Term
+           {:
+              System.out.println( "23." );
+           :}
+           ;
+
+RelOp ::= LOWER
+          {:
+             System.out.println( "24." );
+          :}
+        | LOWEROREQUAL
+          {:
+             System.out.println( "25." );
+          :}
+        | EQUAL
+          {:
+             System.out.println( "26." );
+          :}
+        | NOTEQUAL
+          {:
+             System.out.println( "27." );
+          :}
+        | GREATER
+          {:
+             System.out.println( "28." );
+          :}
+        | GREATEROREQUAL
+          {:
+             System.out.println( "29." );
+          :}
+        ;
+
+Term ::= ID:ime
+           {:
+              Variable var = parser.symbolTable.getVar(ime);
+ 				if ( var == null )
+ 				{
+ 					System.out.println( "Promenljiva " + ime + " nije deklarisana.");
+ 					parser.errNo++;
+ 				}
+ 				//else
+ 				//	var.last_def = parser.getLine(); 
+				if ( var.last_def == -1 )
+				{
+					System.out.println( "Promenljiva " + ime + " nije inicijalizovana.");
+ 					parser.errNo++;
+				}
+           :}
+         | ConstantNT:c
+           {:
+              RESULT = c.type;
+           :}
+         | LEFTPAR Expression RIGHTPAR
+           {:
+              System.out.println( "35." );
+           :}
+         ;
+
+	
+ConstantNT ::= INTCONST:c
+				{:
+ 					RESULT = new Constant(parser.symbolTable.getType( "integer" ), c );
+ 				:}  
+			   |CHARCONST:c
+			   	{:
+ 					RESULT = new Constant(parser.symbolTable.getType( "character" ), c );
+ 				:} 
+			   |FLOATCONST:c
+			   	{:
+ 					RESULT = new Constant(parser.symbolTable.getType( "float" ), c );
+ 				:} 
+			   |BOOLCONST:c
+			   	{:
+ 					RESULT = new Constant(parser.symbolTable.getType( "boolean" ), c );
+ 				:} 
+				;
+
+
+
