@@ -1,0 +1,230 @@
+//import sekcija
+
+import java_cup.runtime.*;
+import java.io.*;
+import java.util.*;
+import SymbolTable.*;
+import AST.*;
+
+parser code {:
+	
+	SymbolTable symbolTable;	
+
+:};
+
+
+init with {:
+ 	symbolTable = new SymbolTable();
+:} 
+
+
+//Terminali
+terminal MAIN, INT, CHAR, FLOAT, BOOL, LOOP, REDO, OR, AND, LOWER, LOWEROREQUAL, EQUAL;
+terminal NOTEQUAL, GREATER, GREATEROREQUAL, LEFTPAR, RIGHTPAR, SEMICOLON, LEFTCURLYPAR, RIGHTCURLYPAR, COMMA, ASSIGN;
+terminal String ID;
+terminal Integer INTCONST;
+terminal Float FLOATCONST;
+terminal Character CHARCONST;
+terminal Boolean BOOLCONST;
+
+//Neterminali
+non terminal CBlock Program, Block, StatementList;
+non terminal Declarations, VarDecl;
+non terminal CRedoLoop RedoLoop;
+non terminal CStatement Statement;
+non terminal CExpression Expression, AndExpression, RelExpression, Term;
+non terminal ArrayList NameList;
+non terminal CType Type, RelOp;
+non terminal Constant ConstantNT;
+
+start with Program;
+
+//Gramatika
+Program ::= MAIN LEFTPAR RIGHTPAR Block:b  
+            {:
+               RESULT = b;
+            :};
+
+Block ::= LEFTCURLYPAR Declarations StatementList:sl RIGHTCURLYPAR
+             {:
+				RESULT = sl;
+             :};
+
+Declarations ::= Declarations VarDecl 
+            | VarDecl
+            ;
+
+VarDecl ::= Type:t NameList:niz SEMICOLON
+                {:
+                   for ( int i=0; i<niz.size(); i++ )
+ 					{
+ 						String ime = (String) niz.get(i);
+						System.out.print(ime);
+ 						parser.symbolTable.addVar(ime, t );
+ 					} 
+                :};
+
+NameList ::= ID:ime
+             {:
+                RESULT = new ArrayList();
+ 				RESULT.add(ime); 
+
+             :} 
+           | NameList:niz COMMA ID:ime
+             {:
+                RESULT = niz;
+ 			   	RESULT.add(ime); 
+             :}
+           ;
+
+Type ::= INT 
+        {:
+           RESULT = parser.symbolTable.getType("integer");
+        :}
+      | CHAR
+        {:
+           RESULT = parser.symbolTable.getType("character");
+        :}
+      | FLOAT 
+        {:
+           RESULT = parser.symbolTable.getType("float");
+        :}
+      | BOOL
+        {:
+           RESULT = parser.symbolTable.getType("boolean");
+        :}
+      ;
+
+StatementList ::= StatementList Statement
+         {:
+            System.out.println( "12." );
+         :}
+         | Statement
+         {:
+            System.out.println( "13." );
+         :}
+         ;
+
+Statement ::= RedoLoop:rl 
+           {:
+              RESULT = rl;
+           :}
+         | ID:ime ASSIGN Expression:izraz SEMICOLON
+           {:
+                Variable var = parser.symbolTable.getVar(ime);
+				RESULT = new Assignment( var, izraz );
+           :}
+		 | Block:b
+           {:
+              RESULT = b;
+           :}
+         ;
+
+RedoLoop ::= LOOP LEFTPAR Expression:lIme RIGHTPAR LEFTCURLYPAR Statement:s1 REDO LEFTPAR Expression:rIme RIGHTPAR SEMICOLON Statement:s2 LEFTCURLYPAR
+            {:
+				RESULT = new CRedoLoop(lIme, rIme, s1, s2);
+            :};
+
+Expression ::= Expression:op1 OR AndExpression:op2
+         {:
+			RESULT = new OR( op1, op2 );
+         :}
+         | AndExpression:ae         
+         {:
+            RESULT = ae;
+         :}         
+         ;
+
+AndExpression ::= AndExpression:op1 AND RelExpression:op2
+          {:
+			RESULT = new AND( op1, op2 );
+          :}
+          | RelExpression:re
+          {:
+            RESULT = re;
+          :}
+          ;
+
+RelExpression ::= Term:op1 RelOp:op Term:op2
+           {:
+			  if(op.name == "le")
+				{
+					RESULT = new LowerOrEqual(op1, op2);
+				}
+			  if(op.name == "eq")
+				{
+					RESULT = new Equal(op1, op2);
+				}
+			  if(op.name == "ge")
+				{
+					RESULT = new GreaterOrEqual(op1, op2);
+				}
+           :}
+           | Term:t
+           {:
+              RESULT = t;
+           :}
+           ;
+
+RelOp ::= LOWER
+          {:
+             System.out.println( "24." );
+          :}
+        | LOWEROREQUAL
+          {:
+             RESULT = parser.symbolTable.getType( "le" );
+          :}
+        | EQUAL
+          {:
+             RESULT = parser.symbolTable.getType( "eq" );
+          :}
+        | NOTEQUAL
+          {:
+             System.out.println( "27." );
+          :}
+        | GREATER
+          {:
+             System.out.println( "28." );
+          :}
+        | GREATEROREQUAL
+          {:
+             RESULT = parser.symbolTable.getType( "ge" );
+          :}
+        ;
+
+Term ::= ID:ime
+           {:
+              Variable var = parser.symbolTable.getVar(ime);
+			  RESULT = new VariableExpression( var );
+           :}
+         | ConstantNT:c
+           {:
+              RESULT = new ConstantExpression( c );
+           :}
+         | LEFTPAR Expression RIGHTPAR
+           {:
+              System.out.println( "35." );
+           :}
+         ;
+
+	
+ConstantNT ::= INTCONST:c
+				{:
+ 					RESULT = new Constant(parser.symbolTable.getType( "integer" ), c );
+ 				:}  
+			   |CHARCONST:c
+			   	{:
+ 					RESULT = new Constant(parser.symbolTable.getType( "character" ), c );
+ 				:} 
+			   |FLOATCONST:c
+			   	{:
+ 					RESULT = new Constant(parser.symbolTable.getType( "float" ), c );
+ 				:} 
+			   |BOOLCONST:c
+			   	{:
+ 					RESULT = new Constant(parser.symbolTable.getType( "boolean" ), c );
+ 				:} 
+				;
+
+
+
